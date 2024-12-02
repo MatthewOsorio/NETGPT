@@ -75,6 +75,11 @@ class packet:
     def getHighestLayer(self):
         return self.highest_layer
     
+    def isEmpty(self):
+        if self.link_layer == None and self.network_layer == None and self.transport_layer == None and self.application_layer == None:
+            return True
+        return False
+    
     def setHighestLayer(self):
         if self.link_layer != None and self.network_layer == None and self.transport_layer == None and self.application_layer == None:
             self.highest_layer= 'link'

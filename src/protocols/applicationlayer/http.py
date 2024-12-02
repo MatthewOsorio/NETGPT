@@ -42,9 +42,3 @@ class http:
     
     def getServer(self):
         return self.server
-    
-    def isRequest(self):
-        if self.request_method != None:
-            return True
-        return False
-        

@@ -7,9 +7,9 @@ from src.protocols.applicationlayer import dns_query, dns_response, tls,http
 
 class fileprocessor:
     def __init__(self, file):
-        self.capture = FileCapture(file, display_filter='eth or arp or ip or ipv6 or tcp or udp or dns or http or tls')
+        self.capture = FileCapture(file, display_filter='eth or arp or ip or ipv6 or tcp or udp or dns or http or tls', keep_packets= False)
         self.packets= []
-        self.max_packets=280
+        self.max_packets= 280
         
     def getPackets(self):
         return self.packets
@@ -22,7 +22,7 @@ class fileprocessor:
 
             if count == self.max_packets:
                 break
-                
+
             new_packet = packet()
             new_packet.setPacketNum(int(pack.number))
             new_packet.setPacketSize(int(pack.length))
@@ -156,15 +156,16 @@ class fileprocessor:
                     new_packet.setALProtocol("HTTP Response")
 
             count += 1
-            new_packet.setHighestLayer()
-            self.formatInput(new_packet)
+            if not new_packet.isEmpty():
+                new_packet.setHighestLayer()
+                self.formatPacket(new_packet)
             
-    def formatInput(self, pack):
+    def formatPacket(self, pack):
         input_packet={'number': pack.packet_num,
                       'length': pack.packetsize}
         
         if pack.getHighestLayer() == 'link':
-            input_packet['link layer'] = {"type": pack.getLLProtocol(),
+            input_packet['link_layer'] = {"type": pack.getLLProtocol(),
                                           "src_mac_address": pack.link_layer.getSourceMacAddr(),
                                           "dst_mac_address": pack.link_layer.getDestMacAddr(),
                                           "ethertype": pack.link_layer.getEtherType()}
@@ -176,103 +177,85 @@ class fileprocessor:
                                        'op_code': pack.link_layer.arp.getOPCode()}
                                        
         elif pack.getHighestLayer() == 'network':
-            input_packet['link layer'] = {"type": pack.getLLProtocol(),
+            input_packet['link_layer'] = {"type": pack.getLLProtocol(),
                                           "src_mac_address": pack.link_layer.getSourceMacAddr(),
                                           "dst_mac_address": pack.link_layer.getDestMacAddr(),
                                           "ethertype": pack.link_layer.getEtherType()}
-            if pack.getNLProtocol() == 'IP':
-                input_packet['network layer'] = {"type": pack.getNLProtocol(),
-                                                 "src_ip_address": pack.network_layer.getSourceIPAddr(),
-                                                 "dst_ip_address": pack.network_layer.getDestIPAddr(),
-                                                 "time_to_live": pack.network_layer.getTTL()}
-            else:
-                input_packet['network layer'] = {"type": pack.getNLProtocol(),
-                                                 "src_ip_address": pack.network_layer.getSourceIPAddr(),
-                                                 "dst_ip_address": pack.network_layer.getDestIPAddr(),
-                                                 "traffic_class": pack.network_layer.getTrafficClass()}
-                
+
+            input_packet['network_layer'] = self.formatNetworkLayer(pack)
+
         elif pack.getHighestLayer() == 'transport':
-            input_packet['link layer'] = {"type": pack.getLLProtocol(),
+            input_packet['link_layer'] = {"type": pack.getLLProtocol(),
                                           "src_mac_address": pack.link_layer.getSourceMacAddr(),
                                           "dst_mac_address": pack.link_layer.getDestMacAddr(),
                                           "ethertype": pack.link_layer.getEtherType()}
-            if pack.getNLProtocol() == 'IP':
-                input_packet['network layer'] = {"type": pack.getNLProtocol(),
-                                                 "src_ip_address": pack.network_layer.getSourceIPAddr(),
-                                                 "dst_ip_address": pack.network_layer.getDestIPAddr(),
-                                                 "time_to_live": pack.network_layer.getTTL()}
-            else:
-                input_packet['network layer'] = {"type": pack.getNLProtocol(),
-                                                 "src_ip_address": pack.network_layer.getSourceIPAddr(),
-                                                 "dst_ip_address": pack.network_layer.getDestIPAddr(),
-                                                 "traffic_class": pack.network_layer.getTrafficClass()}
-            if pack.getTLProtocol() == 'TCP':
-                input_packet['transport layer'] = {"type": pack.getTLProtocol(),
-                                                   "src_port": pack.transport_layer.getSrcPort(),
-                                                   "dst_port": pack.transport_layer.getDSTPort(),
-                                                   "flags": pack.transport_layer.getFlags(),
-                                                   "seq_number": pack.transport_layer.getSeqNum(),
-                                                   "ack_number": pack.transport_layer.getAckNum()}
-            else:
-                input_packet['transport layer'] = {"type": pack.getTLProtocol(),
-                                                    "src_port": pack.transport_layer.getSrcPort(),
-                                                    "dst_port": pack.transport_layer.getDstPort(),
-                                                    "length": pack.transport_layer.getLength(),
-                                                    "checksum": pack.transport_layer.getChecksum()}
+
+            input_packet['network_layer'] = self.formatNetworkLayer(pack)
+            input_packet["transport_layer"]= self.formatTransportLayer(pack)
+
         else:
-            input_packet['link layer'] = {"type": pack.getLLProtocol(),
+            input_packet['link_layer'] = {"type": pack.getLLProtocol(),
                                           "src_mac_address": pack.link_layer.getSourceMacAddr(),
                                           "dst_mac_address": pack.link_layer.getDestMacAddr(),
                                           "ethertype": pack.link_layer.getEtherType()}
-            if pack.getNLProtocol() == 'IP':
-                input_packet['network layer'] = {"type": pack.getNLProtocol(),
-                                                 "src_ip_address": pack.network_layer.getSourceIPAddr(),
-                                                 "dst_ip_address": pack.network_layer.getDestIPAddr(),
-                                                 "time_to_live": pack.network_layer.getTTL()}
-            else:
-                input_packet['network layer'] = {"type": pack.getNLProtocol(),
-                                                 "src_ip_address": pack.network_layer.getSourceIPAddr(),
-                                                 "dst_ip_address": pack.network_layer.getDestIPAddr(),
-                                                 "traffic_class": pack.network_layer.getTrafficClass()}
-            if pack.getTLProtocol() == 'TCP':
-                input_packet['transport layer'] = {"type": pack.getTLProtocol(),
-                                                   "src_port": pack.transport_layer.getSrcPort(),
-                                                   "dst_port": pack.transport_layer.getDSTPort(),
-                                                   "flags": pack.transport_layer.getFlags(),
-                                                   "seq_number": pack.transport_layer.getSeqNum(),
-                                                   "ack_number": pack.transport_layer.getAckNum()}
-            else:
-                input_packet['transport layer'] = {"type": pack.getTLProtocol(),
-                                                    "src_port": pack.transport_layer.getSrcPort(),
-                                                    "dst_port": pack.transport_layer.getDstPort(),
-                                                    "length": pack.transport_layer.getLength(),
-                                                    "checksum": pack.transport_layer.getChecksum()}
+
+            input_packet['network_layer'] = self.formatNetworkLayer(pack)
+            input_packet["transport_layer"]= self.formatTransportLayer(pack)
+            input_packet["application_layer"]= self.formatApplicationLayer(pack)
                 
-            if pack.getALProtocol() == 'DNS Query':
-                input_packet['application layer'] = {"type": pack.getALProtocol(),
-                                                     "id": pack.application_layer.getID(),
-                                                     "query_type": pack.application_layer.getType(),
-                                                     "query_name": pack.application_layer.getName()}
-            elif pack.getALProtocol() == 'DNS Response':
-                input_packet['application layer'] = {"type": pack.getALProtocol(),
-                                                     "id": pack.application_layer.getID(),
-                                                     "response_code": pack.application_layer.getRCode(),
-                                                     "answer": pack.application_layer.getAnswers()}
-            elif pack.getALProtocol() == 'TLS':
-                input_packet['application layer'] = {"type": pack.getALProtocol(),
-                                                     "version": pack.application_layer.getVersion(),
-                                                     "handshake_type": pack.application_layer.getHSType(),
-                                                     "cipher_suite": pack.application_layer.getCipherSuite()}
-            elif pack.getALProtocol() == 'HTTP Request':
-                input_packet['application layer'] = {"type": pack.getALProtocol(),
-                                                     "method": pack.application_layer.getRequestMethod(),
-                                                     "url": pack.application_layer.getURL(),
-                                                     "host": pack.application_layer.getHost(),
-                                                     "user_agent": pack.application_layer.getUserAgent()}
-            elif pack.getALProtocol() == 'HTTP Response':
-                input_packet['application layer'] = {"type": pack.getALProtocol(),
-                                                     "status code": pack.application_layer.getStatusCode(),
-                                                     "url": pack.application_layer.getURL(),
-                                                     "server": pack.application_layer.getServer()}
-            
         self.packets.append(input_packet)
+
+    def formatNetworkLayer(self, pack):
+        if pack.getNLProtocol() == 'IP':
+            return {"type": pack.getNLProtocol(),
+                    "src_ip_address": pack.network_layer.getSourceIPAddr(),
+                    "dst_ip_address": pack.network_layer.getDestIPAddr(),
+                    "time_to_live": pack.network_layer.getTTL()}
+        else:
+            return {"type": pack.getNLProtocol(),
+                    "src_ip_address": pack.network_layer.getSourceIPAddr(),
+                    "dst_ip_address": pack.network_layer.getDestIPAddr(),
+                    "traffic_class": pack.network_layer.getTrafficClass()}
+
+    def formatTransportLayer(self, pack): 
+            if pack.getTLProtocol() == 'TCP':
+                return {"type": pack.getTLProtocol(),
+                        "src_port": pack.transport_layer.getSrcPort(),
+                        "dst_port": pack.transport_layer.getDSTPort(),
+                        "flags": pack.transport_layer.getFlags(),
+                        "seq_number": pack.transport_layer.getSeqNum(),
+                        "ack_number": pack.transport_layer.getAckNum()}
+            else:
+                return {"type": pack.getTLProtocol(),
+                        "src_port": pack.transport_layer.getSrcPort(),
+                        "dst_port": pack.transport_layer.getDstPort(),
+                        "length": pack.transport_layer.getLength(),
+                        "checksum": pack.transport_layer.getChecksum()}
+
+    def formatApplicationLayer(self, pack):
+        if pack.getALProtocol() == 'DNS Query':
+            return {"type": pack.getALProtocol(),
+                    "id": pack.application_layer.getID(),
+                    "query_type": pack.application_layer.getType(),
+                    "query_name": pack.application_layer.getName()}
+        elif pack.getALProtocol() == 'DNS Response':
+            return {"type": pack.getALProtocol(),
+                    "id": pack.application_layer.getID(),
+                    "response_code": pack.application_layer.getRCode(),
+                    "answer": pack.application_layer.getAnswers()}
+        elif pack.getALProtocol() == 'TLS':
+            return {"type": pack.getALProtocol(),
+                    "version": pack.application_layer.getVersion(),
+                    "handshake_type": pack.application_layer.getHSType(),
+                    "cipher_suite": pack.application_layer.getCipherSuite()}
+        elif pack.getALProtocol() == 'HTTP Request':
+            return {"type": pack.getALProtocol(),
+                    "method": pack.application_layer.getRequestMethod(),
+                    "url": pack.application_layer.getURL(),
+                    "host": pack.application_layer.getHost(),
+                    "user_agent": pack.application_layer.getUserAgent()}
+        else:
+            return {"type": pack.getALProtocol(),
+                    "status code": pack.application_layer.getStatusCode(),
+                    "url": pack.application_layer.getURL(),
+                    "server": pack.application_layer.getServer()}
