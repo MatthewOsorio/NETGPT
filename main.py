@@ -1,9 +1,9 @@
 from openai import OpenAI
+from src.fileprocessor import fileprocessor
 import sys
-import fileprocessor
 
 gpt = OpenAI()
-file = fileprocessor.fileprocessor(sys.argv[1])
+file = fileprocessor(sys.argv[1])
 file.process()
 
 response = gpt.chat.completions.create(
